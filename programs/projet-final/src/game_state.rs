@@ -1,7 +1,9 @@
 use anchor_lang::prelude::*;
+//use anchor_lang::solana_program::system_program;
 
 
 #[account]
+
 pub struct GameState {
     pub player_position: u16,
     pub width: u8,

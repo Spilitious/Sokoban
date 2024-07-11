@@ -44,11 +44,11 @@ pub mod projet_final {
     }
 
 
-    pub fn add_item(ctx: Context<Initialize>, item:u8,  x: u8, y: u8) -> Result<()> {
-        let game = &mut ctx.accounts.ground;
+    pub fn add_item(ctx: Context<AddItem>, item:u8,  x: u8, y: u8) -> Result<()> {
+        let game = &mut ctx.accounts.game;
         let index = (y as usize) * (game.width as usize) + (x as usize);
-        if index < ground.data.len() {
-            ground.data[index] = item;
+        if index < game.map_data.len() {
+            game.map_data[index] = item;
             return Ok(());
         } else {
             Err(ErrorCode::IndexOutOfBounds.into())
@@ -66,15 +66,30 @@ pub mod projet_final {
 #[derive(Accounts)]
 #[instruction(height: u8, width: u8)]
 pub struct Initialize<'info> {
-    #[account(init, payer = user, space = 8 + 8 + 8 + 8 + 1 +4+ (height as usize * width as usize))]
+   
+    #[account(
+        init,
+        payer = signer,
+        seeds = [signer.key().as_ref()],
+        bump,
+       
+        space = 8 + 8 + 8 + 8 + 1 +4+ (height as usize * width as usize))]
+   
     pub game: Account<'info, GameState>,
   
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub signer: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
-
+#[derive(Accounts)]
+pub struct AddItem<'info> {
+    #[account(mut)]
+    pub game: Account<'info, GameState>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
 
 /*
 
