@@ -19,7 +19,7 @@ pub mod projet_final {
             return Err(ErrorCode::InitialisationFailed.into());
         }
         
-        game.player_position = 0;
+        game.player_position = width as u16 +1;
         game.width = width;
         game.height = height;
         game.map_data = map_data.clone();
@@ -44,7 +44,7 @@ pub mod projet_final {
     }
 
 
-    pub fn add_item(ctx: Context<AddItem>, item:u8,  x: u8, y: u8) -> Result<()> {
+    pub fn add_item(ctx: Context<MapModifier>, item:u8,  x: u8, y: u8) -> Result<()> {
         let game = &mut ctx.accounts.game;
         let index = (y as usize) * (game.width as usize) + (x as usize);
         if index < game.map_data.len() {
@@ -56,6 +56,12 @@ pub mod projet_final {
         
     }
 
+    pub fn movet(ctx: Context<MapModifier>, direction:u8) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        game.move_to(direction);
+        return Ok(());
+        
+    }
     
 
 
@@ -83,7 +89,7 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AddItem<'info> {
+pub struct MapModifier<'info> {
     #[account(mut)]
     pub game: Account<'info, GameState>,
     #[account(mut)]

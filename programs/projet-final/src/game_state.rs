@@ -52,69 +52,92 @@ impl GameState {
     }
     
     pub fn move_to(&mut self, direction: u8) -> bool {
+       
+        //Détermination de la case d'arrivée du joueur
         let  inc: i8;
-    
+        
         match direction {
-            1 => inc = -(self.width as i8), // Vers le haut
+            1 => inc = -(self.width as i8),  // Vers le haut
             2 => inc = 1,                    // Vers la droite
             3 => inc = self.width as i8,     // Vers le bas
             4 => inc = -1,                   // Vers la gauche
-            _ => return false,              // Direction invalide
+            _ => return false,               // Direction invalide
+        }
+
+        // Calculer la nouvelle position du joueur
+         let new_position = (self.player_position as i32) + inc as i32;
+    
+        //Le joueur est sur une position d'arrivée 
+        let mut reset = 0;
+        if self.get_case_type(self.player_position) == 6 {
+            reset = 4;
+        }
+       
+        //Vérification de la possibilité du mouvement 
+        if new_position < 0 || new_position >= (self.width as i32) * (self.height as i32) {
+            return false;
+            //return ErrorCode::IndexOutOfBounds;
         }
     
-        // Calculer la nouvelle position du joueur
-        let new_position = (self.player_position as i32) + inc as i32;
-    
-        // Vérifier la sortie de la carte
-        //      if new_position < 0 || new_position >= (self.width as i32) * (self.height as i32) {
-        //        return ErrorCode::IndexOutOfBounds;
-        //   }
-    
-        // Vérifier le mur
-        if self.get_case_type(new_position as u16)== 1 {
+        // Vérifier de la présence d'un le mur
+        if self.get_case_type(new_position as u16) == 1 {
             return false;
         }
-    
+
+        
         // Vérifier la présence d'une caisse
         if self.get_case_type(new_position as u16) == 3 || self.get_case_type(new_position as u16) == 5 {
             let new_position2 = new_position + inc as i32;
     
-        //     if new_position2 < 0 {
-         //       return ErrorCode::IndexOutOfBounds;
-          //  }
+            if new_position2 < 0 {
+               return false; 
+               //return ErrorCode::IndexOutOfBounds;
+            }
     
-            // La caisse ne peut pas bouger
-            if self.get_case_type(new_position as u16) != 0 && self.get_case_type(new_position as u16) != 4 {
+            // La caisse ne peut pas bouger car bloquer par un mur ou une caisse
+            if self.get_case_type(new_position2 as u16) != 0 && self.get_case_type(new_position2 as u16) != 4 {
                 return false;
             }
     
-            // Déplacer le bonhomme et la caisse
+
+            // Déplacement du player  
+            self.map_data[self.player_position as usize] = reset;
             self.player_position = new_position as u16;
-            if self.get_case_type(new_position as u16) == 4 {
-                self.map_data[new_position2 as usize] = 5;
-            }else {
-                self.map_data[new_position2 as usize] = 2;
+            if self.get_case_type(new_position as u16) == 5 {
+                self.map_data[new_position as usize] = 6;
+            } else {
+                self.map_data[new_position as usize] = 2;
             }
     
+            //Déplacement de la caisse 
+            if self.get_case_type(new_position2 as u16) == 0 {
+                self.map_data[new_position2 as usize] = 3;
+            } else {
+                self.map_data[new_position2 as usize] = 5;
+            }
             return true;
         }
     
+
         // Vérifier si la case est une position d'arrivée ou une case vide
         if self.get_case_type(new_position as u16) == 4 || self.get_case_type(new_position as u16) == 0 {
-            self.player_position = new_position as u16;
-             
+           
+            self.map_data[self.player_position as usize] = reset;
+            self.player_position = new_position as u16;            
             if self.get_case_type(new_position as u16) == 4 {
                 self.map_data[new_position as usize] = 6  
             }
-           
-            else { self.map_data[new_position as usize] = 2   };
+            else { 
+                self.map_data[new_position as usize] = 2
+            };
     
             return true;
         }
     
-        false
+        false 
     }
 
+  
     pub fn run_sequence(&mut self, directions:Vec<u8>) -> bool {
         for i in directions {
             if !self.move_to(i) {
@@ -133,6 +156,7 @@ impl GameState {
 
         self.solved = true;
         return true;
+        
     }
 
 }
