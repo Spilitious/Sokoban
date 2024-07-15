@@ -1,124 +1,53 @@
 use anchor_lang::prelude::*;
 
-mod game_state;
-mod error;
-use crate::game_state::GameState; 
-use crate::error::ErrorCode; 
+mod soluce_checker;
+mod level_editor;
+// mod game_state;
 
-declare_id!("FYjcKSeCtxwWi161uNjmN8cs2ykVtA2YWdpnsyAWjuHK");
+// use crate::game_state::GameState; 
+use crate::soluce_checker::*;
+use crate::level_editor::*;
+
+
+declare_id!("7pf6pTCeTrgkoETp5GD1f3v2W6pTPH6Wz7SSbRFhHkwb");
 
 #[program]
-pub mod projet_final {
+pub mod game {
     use super::*;
-
-
-    pub fn initialize(ctx: Context<Initialize>, width: u8, height: u8, map_data: Vec<u8>) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        
-        if usize::from(height*width) > map_data.len() {
-            return Err(ErrorCode::InitialisationFailed.into());
-        }
-        
-        game.player_position = width as u16 +1;
-        game.width = width;
-        game.height = height;
-        game.map_data = map_data.clone();
-        game.solved = false;
-        
-        for index in map_data.iter() {
-            if game.get_case_type(*index as u16) == 2 || game.get_case_type(*index as u16) == 6 {
-                game.player_position = *index as u16;
-                break;
-            }
-        }
-
-        Ok(())
-
-    }
-
-    pub fn solve(ctx: Context<Initialize>, directions: Vec<u8>) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        game.run_sequence(directions);
-        game.verify();
-        return Ok(());
-    }
-
-
-    pub fn add_item(ctx: Context<MapModifier>, item:u8,  x: u8, y: u8) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        let index = (y as usize) * (game.width as usize) + (x as usize);
-        if index < game.map_data.len() {
-            game.map_data[index] = item;
-            return Ok(());
-        } else {
-            Err(ErrorCode::IndexOutOfBounds.into())
-        }
-        
-    }
-
-    pub fn movet(ctx: Context<MapModifier>, direction:u8) -> Result<()> {
-        let game = &mut ctx.accounts.game;
-        game.move_to(direction);
-        return Ok(());
-        
-    }
     
 
+    /* Re-export functions from game.rs
+    pub fn initialize(ctx: Context<Initialize>, width: u8, height: u8, map_data: Vec<u8>) -> Result<()> {
+        soluce_checker::initialize(ctx, width, height, map_data)
+    }
+*/
+    pub fn solve(ctx: Context<Initialize>, width:u8, height:u8, id_nft:u32,  map_data:Vec<u8>, directions: Vec<u8>) -> Result<()> {
+        soluce_checker::solve(ctx, width, height, id_nft, map_data, directions)
+    }
 
-
-
-}
-
-#[derive(Accounts)]
-#[instruction(height: u8, width: u8)]
-pub struct Initialize<'info> {
-   
-    #[account(
-        init,
-        payer = signer,
-        seeds = [signer.key().as_ref()],
-        bump,
-       
-        space = 8 + 8 + 8 + 8 + 1 +4+ (height as usize * width as usize))]
-   
-    pub game: Account<'info, GameState>,
-  
-    #[account(mut)]
-    pub signer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct MapModifier<'info> {
-    #[account(mut)]
-    pub game: Account<'info, GameState>,
-    #[account(mut)]
-    pub signer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
+    pub fn claim(ctx: Context<Claim>) -> Result<()> {
+        soluce_checker::claim(ctx)
+    }
 /*
+    pub fn transfer(ctx: Context<Transfer>) -> Result<()> {
+        soluce_checker::transfer(ctx)
+    }
 
-pub fn convert_to_index(ctx: Context<Level>, x:u8, y:u8) -> u16 {
-    let ground = ctx.accounts.ground;
-    let w = ground.width;
-    let h = ground.height;
-    let index = y*h+x;
+    pub fn add_item(ctx: Context<Initialize>, item: u8, x: u8, y: u8) -> Result<()> {
+        soluce_checker::add_item(ctx, item, x, y)
+    }
 
-    if index < ground.data.len() {
-        index;          
-    } else {
-        Err(ErrorCode::IndexOutOfBounds.into())
-    } 
+    pub fn movet(ctx: Context<MapModifier>, direction: u8) -> Result<()> {
+        soluce_checker::movet(ctx, direction)
+    }
+    */
+    // Re-export functions from nft.rs
+    pub fn initialize_nft_id(ctx: Context<InitializeNftId>) -> Result<()> {
+        level_editor::initialize_nft_id(ctx)
+    }
+
+    pub fn create_nft(ctx: Context<CreateNft>, height: u8, width: u8, data: Vec<u8>) -> Result<()> {
+        level_editor::create_nft(ctx, height, width, data)
+    }
 }
 
-pub fn convert_to_point(ctx: Context<Level>, p:u16) -> u16 {
-    if p < ground.data.len() {
-        let ground = ctx.accounts.ground;
-        let w = ground.width;
-        let h = ground.height;
-        index = p / w + p % w;       
-    } else {
-        Err(ErrorCode::IndexOutOfBounds.into())
-    } 
-}*/
