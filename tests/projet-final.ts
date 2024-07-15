@@ -1,35 +1,38 @@
-import { ProjetFinal } from './../target/types/projet_final';
+import { Game  } from './../target/types/game';
+
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 
 import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import * as assert from "assert";
 
 
-const program = anchor.workspace.ProjetFinal as Program<ProjetFinal>;
+
+const program = anchor.workspace.Game as Program<Game>;
 const connection = new Connection('http://localhost:8899', 'confirmed');
+const provider = anchor.AnchorProvider.env();
 anchor.setProvider(anchor.AnchorProvider.env());
 
 let authority =Keypair.generate();
-const wallet = Keypair.generate();
- // Configure the client to use the local cluster.
-let bump:number =255;
+let compteurAccount = Keypair.generate();
+let nftAccount = Keypair.generate();
+let gamePDA = Keypair.generate().publicKey;
+
+
+   
+let bump:number;
+ 
+
 
 const mapData = Buffer.from( [1, 1, 1, 1, 1, 1,
   1, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 1,
+  1, 2, 0, 0, 0, 1,
+  1, 0, 3, 0, 0, 1,
+  1, 0, 0, 4, 0, 1,
   1, 1 ,1 ,1, 1, 1]); 
 const width = 6;
 const height = 6;
 
- let gamePDA = (Keypair.generate()).publicKey;
- 
-
-function getNextBump() {
-  bump -=1;
-  return bump;
-}
 
 function displayMapData(mapData:ArrayBuffer) {
   console.log("Map data:");
@@ -43,287 +46,155 @@ function displayMapData(mapData:ArrayBuffer) {
 
 }
 
-async function LoadFixtureForInit() {
+function displayBestSoluce(directions:ArrayBuffer) {
+  console.log("Best soluce:");
+  let line = " "
+  for (let i = 0; i < directions.byteLength; i++) {
+    line  += directions[i]
+    line += "-";
+   }
+   console.log(line);
 
-  const lamports = 10 * LAMPORTS_PER_SOL;
-  const tx = await connection.requestAirdrop(wallet.publicKey, lamports);
-  await connection.confirmTransaction(tx);
-
-  const tx3 = await connection.requestAirdrop(authority.publicKey, lamports);
-  await connection.confirmTransaction(tx3);
-  const balance2 = await connection.getBalance(wallet.publicKey);
 }
 
-async function LoadFixtureForBuild() {
+async function walletInit() {
 
-  LoadFixtureForInit();
-
+  const balance = await provider.connection.getBalance(gamePDA);
+  
+  nftAccount = Keypair.generate();
   const lamports = 10 * LAMPORTS_PER_SOL;
   authority =Keypair.generate();
-  const tx3 = await connection.requestAirdrop(authority.publicKey, lamports);
-  await connection.confirmTransaction(tx3);
-  const balance2 = await connection.getBalance(wallet.publicKey);
-  const seeds = [authority.publicKey.toBuffer()];
-
-    [gamePDA, bump] = await PublicKey.findProgramAddress(
-    seeds,
-    program.programId,
-    // Use a specific bump value, such as a timestamp or a counter
+  const tx = await connection.requestAirdrop(authority.publicKey, lamports);
+  await connection.confirmTransaction(tx);
   
-  );
-
- 
-    
-    const tx2 = await program.rpc.initialize(width, height, mapData, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-
 }
 
+  describe("MinterNft", () => {
+   
+    it("Is created!", async () => {
+      
+      await walletInit();
+      let tx = await program.rpc.initializeNftId({
+          accounts: {
+            nftIdCounter:compteurAccount.publicKey,
+            user: authority.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          },
+          signers: [authority, compteurAccount],
+      });
 
 
-describe("projet-final", () => {
- 
-  // beforeEach(async function() {
-    // await LoadFixtureForInit();
-
- //});
-
-  it("Is initialized!", async () => {
-    await LoadFixtureForInit();
-    // Find the PDA for the game account
-    const [gamePDA, bump] = await PublicKey.findProgramAddress(
-    [authority.publicKey.toBuffer()],
-    program.programId);
-
-    const tx2 = await program.rpc.initialize(width, height, mapData, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
+      tx = await program.rpc.createNft(width, height, mapData, {
+          accounts: {
+            nftAccount: nftAccount.publicKey,
+            nftIdCounter: compteurAccount.publicKey,
+            user: provider.wallet.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
       },
-      signers: [authority],
+      signers: [nftAccount],
     });
 
+    let nftAccountInfo = await program.account.nftAccount.fetch(nftAccount.publicKey);
+    assert.equal(nftAccountInfo.owner.toString(), provider.wallet.publicKey.toString());
+    assert.equal(nftAccountInfo.height, height);
+    assert.equal(nftAccountInfo.width, width);
+    assert.deepEqual(nftAccountInfo.data, mapData);
+    // displayMapData(nftAccountInfo.data);
+    console.log("id= ", nftAccountInfo.id )
 
-    let updatedGame = await program.account.gameState.fetch(gamePDA);
-    let updatedMapData = updatedGame.mapData;
-    displayMapData(updatedMapData);
 
-  });
-  
-  it("Creation d'une map", async () => {
+    await walletInit();
     
-    await LoadFixtureForBuild();
-    console.log("Ajout d'une caisse en 2-2");
-    console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    console.log("Ajout de la position de départ du joueur en 4-3")
 
-    let tx = await program.rpc.addItem(3,2,2,  {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
+
+    tx = await program.rpc.createNft(width, height, mapData, {
+          accounts: {
+            nftAccount: nftAccount.publicKey,
+            nftIdCounter: compteurAccount.publicKey,
+            user: provider.wallet.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
       },
-      signers: [authority],
-    });
-   
-    tx = await program.rpc.addItem(4,3, 3,  {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
- 
-   
-    tx = await program.rpc.addItem(2,1, 1,  {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
+      signers: [nftAccount],
     });
 
+    nftAccountInfo = await program.account.nftAccount.fetch(nftAccount.publicKey);
+    assert.equal(nftAccountInfo.owner.toString(), provider.wallet.publicKey.toString());
+    assert.equal(nftAccountInfo.height, height);
+    assert.equal(nftAccountInfo.width, width);
+    assert.deepEqual(nftAccountInfo.data, mapData);
+    // displayMapData(nftAccountInfo.data);
+    console.log("id= ", nftAccountInfo.id )
+   
+   
+    await walletInit();
+    
+    
+    const id_nft = 2;
+    
+    //Création de la seed 
+    const idBytes = new Uint8Array(new Uint32Array([id_nft]).buffer);
+    const seeds = 
+    Buffer.concat([
+    Buffer.from('Game'), // 'Game' en bytes
+    idBytes,              // id_nft en bytes
+    ]);
+    
+   
+    //Récupérzation de l'adresse du PDA associé à id_nft
+    [gamePDA, bump] = await PublicKey.findProgramAddress(
+      [seeds],
+      program.programId
+    );
+
+    //Affichag des balance du signer et du PDA avant la demande de solve
+    let balanceUser = await provider.connection.getBalance(authority.publicKey);
+    let balancePda = await provider.connection.getBalance(gamePDA);
+    console.log("BalancePDA", balancePda);
+    console.log("BalanceUser", balanceUser)
+      
+
+    //Demande de résolution d'une séquence de mouvement 
+    const moveSequence = Buffer.from( [3,1,3, 2,1,2,3]);
+    tx = await program.rpc.solve(nftAccountInfo.width, nftAccountInfo.height, id_nft, nftAccountInfo.data, moveSequence, {
+      accounts: {
+        game : gamePDA,
+        signer: authority.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      },
+      signers: [authority],
+    }); 
+
+    //Affichage des éléments du PDA pour vérification 
     let updatedGame = await program.account.gameState.fetch(gamePDA);
-    let  updatedMapData = updatedGame.mapData;
+    console.log("solved = ", updatedGame.solved)
+    displayBestSoluce(updatedGame.bestSoluce);
+    console.log("longueur best soluce=", updatedGame.bestSoluce.length);
+    console.log("Pubkey best soluce", updatedGame.leader);
    
-    displayMapData(updatedMapData);
+    // Affichage des balances arpès la résolution
+    balancePda = await provider.connection.getBalance(gamePDA);
+    balanceUser = await provider.connection.getBalance(authority.publicKey);
+    console.log("Balance du PDA:", balancePda);
+    console.log("Balance du user:", balanceUser);
 
+   // await walletInit();
 
-    console.log("Mouvement vers le bas");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(3, {
+    tx = await program.rpc.claim( {
       accounts: {
-        game: gamePDA,
+        game : gamePDA,
         signer: authority.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
       },
       signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-    console.log("Mouvement vers la gauche");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(4, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-
-    console.log("Mouvement vers le droite");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(2, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-    console.log("Mouvement vers le haut");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(1, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-
-    console.log("Mouvement vers le droite");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(2, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-    console.log("Mouvement vers le bas");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(3, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-    console.log("Mouvement vers le bas");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(3, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-    console.log("Mouvement vers le gauche");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(4, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
-    console.log("Mouvement vers la droite");
-    // console.log("Ajout de la position d'arrivé de la caisse en  en 3-3");
-    // console.log("Ajout de la position de départ du joueur en 4-3")
-
-    tx = await program.rpc.movet(2, {
-      accounts: {
-        game: gamePDA,
-        signer: authority.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      },
-      signers: [authority],
-    });
-   
-    updatedGame = await program.account.gameState.fetch(gamePDA);
-    updatedMapData = updatedGame.mapData;
-   
-    displayMapData(updatedMapData); 
-
+    }); 
+    
+    balancePda = await provider.connection.getBalance(gamePDA);
+    balanceUser = await provider.connection.getBalance(authority.publicKey);
+    console.log("Balance du PDA:", balancePda);
+    console.log("Balance du user:", balanceUser);
+  
   });
 
-  
-
+ 
+    
 });
