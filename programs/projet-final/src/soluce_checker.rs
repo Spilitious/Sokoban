@@ -1,13 +1,7 @@
 use anchor_lang::prelude::*;
-// use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use anchor_lang::system_program;
 
-// mod game_state;
-// mod error;
-// use crate::game_state::GameState; 
-// use crate::error::ErrorCode; 
 
-//use crate::level_editor::NftAccount;
 
 #[derive(Accounts)]
 #[instruction(height: u8, width: u8, id_nft:u32)]

@@ -60,7 +60,7 @@ function displayBestSoluce(directions:ArrayBuffer) {
 async function walletInit() {
 
   const balance = await provider.connection.getBalance(gamePDA);
-  
+  console.log("balance : ", balance);
   nftAccount = Keypair.generate();
   const lamports = 10 * LAMPORTS_PER_SOL;
   authority =Keypair.generate();
@@ -74,6 +74,7 @@ async function walletInit() {
     it("Is created!", async () => {
       
       await walletInit();
+
       let tx = await program.rpc.initializeNftId({
           accounts: {
             nftIdCounter:compteurAccount.publicKey,

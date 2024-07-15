@@ -9,7 +9,7 @@ use crate::soluce_checker::*;
 use crate::level_editor::*;
 
 
-declare_id!("7pf6pTCeTrgkoETp5GD1f3v2W6pTPH6Wz7SSbRFhHkwb");
+declare_id!("BRqRmsYFYUAGHD1G7vQRQHZi3yTo6sbn6UnYHoWucbo");
 
 #[program]
 pub mod game {
